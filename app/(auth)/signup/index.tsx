@@ -16,7 +16,6 @@ import {
   View,
 } from 'react-native';
 import { ID } from 'react-native-appwrite';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 const Signup = () => {
@@ -29,28 +28,36 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [secureText, setSecureText] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handaleSignup = async () => {
     setLoading(true);
+    setError(null);
     try {
       const user = await account.create(ID.unique(), email, password, name);
       await databases.createDocument(
         process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
         process.env.EXPO_PUBLIC_APPWRITE_USER_COLLECTION_ID!,
         ID.unique(),
-        { name, phone, role,email }
+        { name, phone, role, email }
       );
-      setShowSuccess(true); // Show custom modal
+      setShowSuccess(true);
       console.log("Signup successful with email:", email, "role:", role, "ownerId:", ownerId);
-    } catch (error) {
-      console.error("Signup failed:", error);
+    } catch (error: any) {
+      let message = "Signup failed. Please try again.";
+      if (error?.code === 409) {
+        message = "This email is already registered.";
+      } else if (error?.message) {
+        message = error.message;
+      }
+      setError(message); // Only set the main message
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white mt-0">
+    <View className="flex-1 bg-white mt-0">
       <KeyboardAvoidingView
         style={{ flex: 1, marginTop: 0 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -88,10 +95,9 @@ const Signup = () => {
                 <Picker
                   selectedValue={role}
                   onValueChange={setRole}
-                  style={{ height: 48, width: '100%' }}
                   dropdownIconColor="#1e293b"
                 >
-                  <Picker.Item label="Owner" value="owner" />
+                  <Picker.Item label="Owner" value="owner"/>
                   <Picker.Item label="Admin" value="admin" />
                   <Picker.Item label="Enumarator" value="enumarator" />
                 </Picker>
@@ -210,10 +216,26 @@ const Signup = () => {
               </View>
             </Modal>
 
+            {/* Error Modal */}
+            <Modal transparent visible={!!error} animationType="fade">
+              <View className="flex-1 justify-center items-center bg-black/40">
+                <View className="bg-white w-11/12 max-w-sm p-6 rounded-2xl shadow-lg items-center">
+                  <Text className="text-xl font-bold text-red-600 mb-2">Signup Error</Text>
+                  <Text className="text-base text-gray-600 text-center mb-4">{error}</Text>
+                  <TouchableOpacity
+                    onPress={() => setError(null)}
+                    className="bg-red-500 px-6 py-2 rounded-xl"
+                  >
+                    <Text className="text-white font-semibold text-base">OK</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
